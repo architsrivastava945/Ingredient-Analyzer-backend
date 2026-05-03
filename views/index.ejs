@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingredient Analyzer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', sans-serif; background: #fff; min-height: 100vh; }
+
+  .page {
+    position: relative; width: 100vw; min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: space-between; overflow: hidden;
+  }
+  .page::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle, #f0c0c0 1px, transparent 1px);
+    background-size: 32px 32px; opacity: 0.35;
+    pointer-events: none; z-index: 0;
+  }
+
+  .icon-rows-top, .icon-rows-bottom {
+    width: 100%; display: flex; flex-direction: column;
+    gap: 4px; z-index: 1; pointer-events: none;
+  }
+  .icon-rows-top  { padding: 10px 8px 6px; }
+  .icon-rows-bottom { padding: 6px 8px 10px; }
+
+  .icon-row { display: flex; justify-content: center; gap: 6px; flex-wrap: nowrap; }
+  .ic {
+    font-size: 17px; color: #e05555; opacity: 0.72;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+
+  .center {
+    position: relative; z-index: 10; text-align: center;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 13px; width: 100%; padding: 10px 24px;
+    flex: 1; justify-content: center;
+  }
+
+  .chip { background: #e05555; color: #fff; font-size: 12px; font-weight: 700; padding: 5px 16px; border-radius: 6px; }
+
+  .logo { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+  .logo i.flask { font-size: 48px; color: #1a2744; }
+  .logo i.leaf  { position: absolute; top: 2px; right: -6px; font-size: 18px; color: #e05555; }
+
+  h1 { font-size: 26px; font-weight: 900; line-height: 1.1; color: #1a2744; }
+  h1 span.red { color: #e05555; }
+  h2 { font-size: 15px; font-weight: 800; color: #1a2744; }
+  h2 .dot { color: #e05555; }
+  p.desc { font-size: 13px; color: #666; font-weight: 600; line-height: 1.5; }
+
+  /* Error banner */
+  .error-banner {
+    background: #fff1f0; border: 1.5px solid #ffccc7;
+    color: #cf1322; font-size: 12px; font-weight: 700;
+    padding: 10px 16px; border-radius: 10px;
+    width: 100%; max-width: 320px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* Scan button — now a label that triggers file input */
+  .scan-btn {
+    display: flex; align-items: center; gap: 12px;
+    background: #fff; border: 2px solid #1a2744;
+    border-radius: 50px; padding: 12px 20px;
+    cursor: pointer; transition: all 0.2s;
+    width: 100%; max-width: 320px;
+  }
+  .scan-btn:active { transform: scale(0.98); background: #f5f5f5; }
+
+  .scan-icon-wrap {
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; flex-shrink: 0;
+  }
+  .bracket {
+    position: absolute; width: 36px; height: 36px;
+    top: 50%; left: 50%; transform: translate(-50%,-50%);
+  }
+  .bracket::before,.bracket::after,
+  .bracket span::before,.bracket span::after {
+    content:''; position:absolute; width:9px; height:9px;
+    border-color:#1a2744; border-style:solid;
+  }
+  .bracket::before      { top:0;    left:0;  border-width:2.5px 0 0 2.5px; border-radius:2px 0 0 0; }
+  .bracket::after       { top:0;    right:0; border-width:2.5px 2.5px 0 0; border-radius:0 2px 0 0; }
+  .bracket span::before { bottom:0; left:0;  border-width:0 0 2.5px 2.5px; border-radius:0 0 0 2px; }
+  .bracket span::after  { bottom:0; right:0; border-width:0 2.5px 2.5px 0; border-radius:0 0 2px 0; }
+  .scan-btn i.cam { font-size: 17px; color: #1a2744; }
+
+  .divider { width:1px; height:32px; background:#ddd; flex-shrink:0; }
+  .scan-text { text-align:left; }
+  .scan-text strong { display:block; font-size:12px; font-weight:900; color:#1a2744; letter-spacing:0.5px; }
+  .scan-text span   { font-size:10px; color:#999; font-weight:600; }
+
+  .meta { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; font-size:11px; color:#444; font-weight:700; }
+  .meta-item { display:flex; align-items:center; gap:4px; }
+  .meta-item i { font-size:12px; color:#1a2744; }
+
+  /* Loading overlay */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(26,39,68,0.92);
+    z-index: 200; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+  }
+  .loading-overlay.active { display: flex; }
+  .spinner {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 5px solid rgba(255,255,255,0.2);
+    border-top-color: #e05555;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: #fff; font-size: 14px; font-weight: 800; }
+  .loading-sub  { color: rgba(255,255,255,0.6); font-size: 12px; font-weight: 600; }
+
+  /* Camera Modal */
+  .modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.85); z-index:100;
+    align-items:center; justify-content:center; flex-direction:column;
+  }
+  .modal-overlay.active { display:flex; }
+  .camera-box { background:#000; border-radius:16px; overflow:hidden; width:min(90vw,420px); position:relative; }
+  video { width:100%; display:block; max-height:60vh; object-fit:cover; }
+  .camera-overlay {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:space-between;
+    padding:20px; pointer-events:none;
+  }
+  .scan-frame { width:160px; height:160px; position:relative; margin:auto; }
+  .scan-frame::before,.scan-frame::after,
+  .scan-frame span::before,.scan-frame span::after {
+    content:''; position:absolute; width:24px; height:24px;
+    border-color:#fff; border-style:solid;
+  }
+  .scan-frame::before      { top:0;    left:0;  border-width:3px 0 0 3px; border-radius:4px 0 0 0; }
+  .scan-frame::after       { top:0;    right:0; border-width:3px 3px 0 0; border-radius:0 4px 0 0; }
+  .scan-frame span::before { bottom:0; left:0;  border-width:0 0 3px 3px; border-radius:0 0 0 4px; }
+  .scan-frame span::after  { bottom:0; right:0; border-width:0 3px 3px 0; border-radius:0 0 4px 0; }
+  .scan-line {
+    position:absolute; left:8px; right:8px; height:2px;
+    background:linear-gradient(90deg,transparent,#e05555,transparent);
+    animation:scanMove 2s linear infinite; top:8px;
+  }
+  @keyframes scanMove { 0%{top:8px} 100%{top:calc(100% - 10px)} }
+  .camera-hint { color:#fff; font-size:12px; font-weight:700; opacity:.8; text-align:center; }
+  .modal-actions { display:flex; gap:10px; margin-top:14px; }
+  .modal-btn {
+    padding:11px 24px; border-radius:50px; border:none;
+    cursor:pointer; font-family:'Nunito',sans-serif;
+    font-weight:800; font-size:13px; transition:.2s;
+  }
+  .modal-btn.capture   { background:#e05555; color:#fff; }
+  .modal-btn.close-btn { background:rgba(255,255,255,.15); color:#fff; }
+  .cam-error { display:none; padding:30px; text-align:center; color:#fff; }
+  .cam-error i { font-size:36px; color:#e05555; margin-bottom:10px; display:block; }
+  .cam-error p { font-size:13px; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="icon-rows-top">
+    <div class="icon-row" id="topRow1"></div>
+    <div class="icon-row" id="topRow2"></div>
+    <div class="icon-row" id="topRow3"></div>
+  </div>
+
+  <div class="center">
+    <div class="chip">Ingredient Analyzer</div>
+    <div class="logo">
+      <i class="fa-solid fa-flask flask"></i>
+      <i class="fa-solid fa-leaf leaf"></i>
+    </div>
+    <h1><span class="red">Ingredient</span> Analyzer.</h1>
+    <h2>Scan<span class="dot">.</span> Analyze<span class="dot">.</span> Understand<span class="dot">.</span></h2>
+    <p class="desc">Scan any food label to discover<br>ingredient safety, risks, and more.</p>
+
+    <!-- Error banner (shown only if controller passes an error) -->
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-banner">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <%= error %>
+      </div>
+    <% } %>
+
+    <!-- Scan button opens camera modal -->
+    <button class="scan-btn" type="button" onclick="openCamera()">
+      <div class="scan-icon-wrap">
+        <div class="bracket"><span></span></div>
+        <i class="fa-solid fa-camera cam"></i>
+      </div>
+      <div class="divider"></div>
+      <div class="scan-text">
+        <strong>SCAN INGREDIENT</strong>
+        <span>Tap to open camera</span>
+      </div>
+    </button>
+
+    <!-- Hidden form that submits to POST /analyze -->
+    <form id="uploadForm" action="/analyze" method="POST" enctype="multipart/form-data" style="display:none;">
+      <input type="file" id="imageInput" name="image" accept="image/*">
+    </form>
+
+    <div class="meta">
+      <div class="meta-item"><i class="fa-solid fa-leaf"></i> v1.0.0</div>
+      <div class="meta-item"><i class="fa-solid fa-flask"></i> 500+ Ingredients</div>
+      <div class="meta-item"><i class="fa-solid fa-shield-halved"></i> Safety First</div>
+    </div>
+  </div>
+
+  <div class="icon-rows-bottom">
+    <div class="icon-row" id="bottomRow1"></div>
+    <div class="icon-row" id="bottomRow2"></div>
+    <div class="icon-row" id="bottomRow3"></div>
+  </div>
+
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Analyzing Ingredients...</div>
+  <div class="loading-sub">Reading label via Azure AI Vision</div>
+</div>
+
+<!-- Camera Modal -->
+<div class="modal-overlay" id="cameraModal">
+  <div class="camera-box">
+    <video id="video" autoplay playsinline></video>
+    <div class="camera-overlay">
+      <p class="camera-hint">Point camera at an ingredient label</p>
+      <div class="scan-frame"><span></span><div class="scan-line"></div></div>
+      <p class="camera-hint">Hold steady for best results</p>
+    </div>
+    <div class="cam-error" id="camError">
+      <i class="fa-solid fa-camera-slash"></i>
+      <p>Camera access denied.<br>Please allow camera permissions.</p>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="modal-btn capture"   onclick="capturePhoto()"><i class="fa-solid fa-camera"></i> Capture</button>
+    <button class="modal-btn close-btn" onclick="closeCamera()"><i class="fa-solid fa-xmark"></i> Close</button>
+  </div>
+</div>
+
+<script>
+  const foodIcons = [
+    'fa-apple-whole','fa-carrot','fa-lemon','fa-pepper-hot','fa-seedling',
+    'fa-leaf','fa-flask','fa-microscope','fa-heart-pulse','fa-shield-halved',
+    'fa-pills','fa-syringe','fa-vial','fa-kit-medical','fa-stethoscope',
+    'fa-weight-scale','fa-droplet','fa-fire','fa-snowflake','fa-sun',
+    'fa-bottle-water','fa-mug-hot','fa-cheese','fa-egg','fa-bread-slice',
+    'fa-fish','fa-drumstick-bite','fa-cookie','fa-ice-cream','fa-blender',
+    'fa-dna','fa-brain','fa-eye','fa-tooth','fa-hand-holding-heart',
+    'fa-star','fa-circle-check','fa-magnifying-glass','fa-lungs','fa-ribbon',
+    'fa-burger','fa-pizza-slice','fa-hotdog','fa-candy-cane','fa-wheat-awn',
+    'fa-bacon','fa-mortar-pestle','fa-notes-medical','fa-pump-medical','fa-capsules'
+  ];
+
+  function fillRow(id, start, count) {
+    const row = document.getElementById(id);
+    for (let i = 0; i < count; i++) {
+      const div = document.createElement('div');
+      div.className = 'ic';
+      div.innerHTML = `<i class="fa-solid ${foodIcons[(start + i) % foodIcons.length]}"></i>`;
+      row.appendChild(div);
+    }
+  }
+  fillRow('topRow1',    0, 10); fillRow('topRow2',   10, 10); fillRow('topRow3',   20, 10);
+  fillRow('bottomRow1',30, 10); fillRow('bottomRow2',40, 10); fillRow('bottomRow3',50, 10);
+
+  let stream = null;
+
+  async function openCamera() {
+    const modal  = document.getElementById('cameraModal');
+    const video  = document.getElementById('video');
+    const errDiv = document.getElementById('camError');
+    modal.classList.add('active');
+    errDiv.style.display = 'none';
+    video.style.display  = 'block';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }, audio: false
+      });
+      video.srcObject = stream;
+    } catch(e) {
+      video.style.display = 'none';
+      errDiv.style.display = 'block';
+    }
+  }
+
+  function closeCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    document.getElementById('cameraModal').classList.remove('active');
+    document.getElementById('video').srcObject = null;
+  }
+
+  function capturePhoto() {
+    const video  = document.getElementById('video');
+    const canvas = document.createElement('canvas');
+    canvas.width  = video.videoWidth  || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+
+    // Convert canvas to blob and inject into form, then submit
+    canvas.toBlob(function(blob) {
+      const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+      const dt   = new DataTransfer();
+      dt.items.add(file);
+      document.getElementById('imageInput').files = dt.files;
+
+      closeCamera();
+
+      // Show loading overlay then submit
+      document.getElementById('loadingOverlay').classList.add('active');
+      document.getElementById('uploadForm').submit();
+    }, 'image/jpeg', 0.85);
+  }
+
+  document.getElementById('cameraModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCamera();
+  });
+</script>
+</body>
+</html>
