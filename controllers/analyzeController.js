@@ -1,5 +1,6 @@
 import { extractTextFromImage } from "../services/azureOcrService.js";
 import { calculateHealthScore } from "../services/scoringService.js";
+import { cleanOcrText } from "../utils/textCleaner.js";
 
 // GET / — render the scanner page
 export const showScanner = (req, res) => {
@@ -23,7 +24,8 @@ export const analyzeImage = async (req, res) => {
             });
         }
 
-        const analysisResult = calculateHealthScore(extractedText);
+        const cleanedText = cleanOcrText(extractedText);
+        const analysisResult = calculateHealthScore(cleanedText);
 
         res.render("result", { result: analysisResult });
 
